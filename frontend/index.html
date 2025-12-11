@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- Axios for API calls -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            color: #4CAF50 !important;
+        }
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .stat-card h3 {
+            color: #4CAF50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            border-color: #4CAF50;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+            border-color: #45a049;
+        }
+        .sidebar {
+            background-color: white;
+            min-height: calc(100vh - 56px);
+            padding: 20px;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+        }
+        .sidebar .nav-link {
+            color: #333;
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .main-content {
+            padding: 20px;
+        }
+        .badge-booked {
+            background-color: #ffc107;
+        }
+        .badge-completed {
+            background-color: #28a745;
+        }
+        .badge-cancelled {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">🏥 Hospital Management System</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item" v-if="!user">
+                            <a class="nav-link" href="#" @click="showLogin = true">Login</a>
+                        </li>
+                        <li class="nav-item" v-if="!user">
+                            <a class="nav-link" href="#" @click="showRegister = true">Register</a>
+                        </li>
+                        <li class="nav-item" v-if="user">
+                            <span class="nav-link">Welcome, {{ user.username }} ({{ user.role }})</span>
+                        </li>
+                        <li class="nav-item" v-if="user">
+                            <a class="nav-link" href="#" @click="logout">Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="container-fluid" v-if="user">
+            <div class="row">
+                <!-- Sidebar -->
+                <div class="col-md-2 sidebar">
+                    <nav class="nav flex-column">
+                        <a class="nav-link" :class="{active: currentView === 'dashboard'}" 
+                           @click="currentView = 'dashboard'">
+                            📊 Dashboard
+                        </a>
+                        
+                        <!-- Admin Menu -->
+                        <template v-if="user.role === 'admin'">
+                            <a class="nav-link" :class="{active: currentView === 'doctors'}" 
+                               @click="currentView = 'doctors'">
+                                👨‍⚕️ Manage Doctors
+                            </a>
+                            <a class="nav-link" :class="{active: currentView === 'patients'}" 
+                               @click="currentView = 'patients'">
+                                🧑‍🤝‍🧑 Manage Patients
+                            </a>
+                            <a class="nav-link" :class="{active: currentView === 'appointments'}" 
+                               @click="currentView = 'appointments'">
+                                📅 All Appointments
+                            </a>
+                        </template>
+                        
+                        <!-- Doctor Menu -->
+                        <template v-if="user.role === 'doctor'">
+                            <a class="nav-link" :class="{active: currentView === 'appointments'}" 
+                               @click="currentView = 'appointments'">
+                                📅 My Appointments
+                            </a>
+                            <a class="nav-link" :class="{active: currentView === 'availability'}" 
+                               @click="currentView = 'availability'">
+                                🕐 Manage Availability
+                            </a>
+                        </template>
+                        
+                        <!-- Patient Menu -->
+                        <template v-if="user.role === 'patient'">
+                            <a class="nav-link" :class="{active: currentView === 'specializations'}" 
+                               @click="currentView = 'specializations'">
+                                🏥 Find Doctors
+                            </a>
+                            <a class="nav-link" :class="{active: currentView === 'appointments'}" 
+                               @click="currentView = 'appointments'">
+                                📅 My Appointments
+                            </a>
+                            <a class="nav-link" :class="{active: currentView === 'history'}" 
+                               @click="currentView = 'history'">
+                                📋 Treatment History
+                            </a>
+                            <a class="nav-link" :class="{active: currentView === 'profile'}" 
+                               @click="currentView = 'profile'">
+                                👤 My Profile
+                            </a>
+                        </template>
+                    </nav>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="col-md-10 main-content">
+                    <!-- Dashboard View -->
+                    <div v-if="currentView === 'dashboard'">
+                        <h2>Dashboard</h2>
+                        <div class="row" v-if="dashboardStats">
+                            <div class="col-md-3" v-for="(value, key) in dashboardStats" :key="key">
+                                <div class="card stat-card">
+                                    <h3>{{ value }}</h3>
+                                    <p>{{ formatStatLabel(key) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Doctors Management (Admin) -->
+                    <div v-if="currentView === 'doctors' && user.role === 'admin'">
+                        <h2>Manage Doctors</h2>
+                        <button class="btn btn-primary mb-3" @click="showAddDoctor = true">Add New Doctor</button>
+                        
+                        <div class="card">
+                            <div class="card-body">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Specialization</th>
+                                            <th>Qualification</th>
+                                            <th>Experience</th>
+                                            <th>Fee</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="doctor in doctors" :key="doctor.id">
+                                            <td>{{ doctor.full_name }}</td>
+                                            <td>{{ doctor.specialization }}</td>
+                                            <td>{{ doctor.qualification }}</td>
+                                            <td>{{ doctor.experience_years }} years</td>
+                                            <td>₹{{ doctor.consultation_fee }}</td>
+                                            <td>
+                                                <span class="badge" :class="doctor.is_available ? 'bg-success' : 'bg-danger'">
+                                                    {{ doctor.is_available ? 'Available' : 'Unavailable' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-danger" @click="deleteDoctor(doctor.id)">
+                                                    Deactivate
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Appointments View -->
+                    <div v-if="currentView === 'appointments'">
+                        <h2>Appointments</h2>
+                        <div class="card">
+                            <div class="card-body">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th v-if="user.role !== 'patient'">Patient</th>
+                                            <th v-if="user.role !== 'doctor'">Doctor</th>
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="apt in appointments" :key="apt.id">
+                                            <td v-if="user.role !== 'patient'">{{ apt.patient_name }}</td>
+                                            <td v-if="user.role !== 'doctor'">{{ apt.doctor_name }}</td>
+                                            <td>{{ apt.appointment_date }}</td>
+                                            <td>{{ apt.appointment_time }}</td>
+                                            <td>
+                                                <span class="badge" :class="'badge-' + apt.status">
+                                                    {{ apt.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button v-if="user.role === 'doctor' && apt.status === 'booked'" 
+                                                        class="btn btn-sm btn-success" 
+                                                        @click="completeAppointment(apt.id)">
+                                                    Complete
+                                                </button>
+                                                <button v-if="apt.status === 'booked'" 
+                                                        class="btn btn-sm btn-danger" 
+                                                        @click="cancelAppointment(apt.id)">
+                                                    Cancel
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Find Doctors (Patient) -->
+                    <div v-if="currentView === 'specializations' && user.role === 'patient'">
+                        <h2>Find Doctors</h2>
+                        <div class="row">
+                            <div class="col-md-4" v-for="spec in specializations" :key="spec.id">
+                                <div class="card" style="cursor: pointer;" @click="viewDoctors(spec.id)">
+                                    <div class="card-body">
+                                        <h5>{{ spec.name }}</h5>
+                                        <p>{{ spec.description }}</p>
+                                        <small>{{ spec.doctors_count }} doctors available</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Treatment History (Patient) -->
+                    <div v-if="currentView === 'history' && user.role === 'patient'">
+                        <h2>Treatment History</h2>
+                        <button class="btn btn-primary mb-3" @click="exportTreatments">Export as CSV</button>
+                        
+                        <div class="card" v-for="record in treatmentHistory" :key="record.appointment_id">
+                            <div class="card-body">
+                                <h5>{{ record.doctor_name }} - {{ record.specialization }}</h5>
+                                <p><strong>Date:</strong> {{ record.appointment_date }}</p>
+                                <p><strong>Diagnosis:</strong> {{ record.diagnosis }}</p>
+                                <p><strong>Prescription:</strong> {{ record.prescription }}</p>
+                                <p v-if="record.notes"><strong>Notes:</strong> {{ record.notes }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login/Register Forms -->
+        <div class="container mt-5" v-if="!user">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="text-center mb-4">Welcome to Hospital Management System</h3>
+                            <p class="text-center">Please login or register to continue</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" @click="showLogin = true">Login</button>
+                                <button class="btn btn-outline-primary" @click="showRegister = true">Register as Patient</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div class="modal" :class="{show: showLogin, 'd-block': showLogin}" v-if="showLogin">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Login</h5>
+                        <button type="button" class="btn-close" @click="showLogin = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="login">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" v-model="loginForm.username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" class="form-control" v-model="loginForm.password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Login</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Modal -->
+        <div class="modal" :class="{show: showRegister, 'd-block': showRegister}" v-if="showRegister">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Register as Patient</h5>
+                        <button type="button" class="btn-close" @click="showRegister = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="register">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" v-model="registerForm.username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" v-model="registerForm.email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input type="password" class="form-control" v-model="registerForm.password" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" v-model="registerForm.full_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Contact Number</label>
+                                <input type="tel" class="form-control" v-model="registerForm.contact_number" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Register</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Vue.js App -->
+    <script src="app.js"></script>
+</body>
+</html>
